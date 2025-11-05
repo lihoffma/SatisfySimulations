@@ -1296,15 +1296,504 @@ def test6(width, height, output_file):
     pygame.quit()
 
 
-def main3():
-    for format in ["h","v"]:
-        if format == "h":
-            width, height = 1080, 720
-            output_dir = "../../Reddit/Simulations/Christmas/ChristmasHill/Horizontal/sim2.mp4"
+
+def test7(width, height, output_file, duration=600):
+    import pygame
+    import random
+    import math
+    import imageio
+    import numpy as np
+    import time as time_module
+
+    pygame.init()
+    pygame.display.set_caption("✨ Forêt de Noël — Ambiance Satisfaisante ❄️")
+
+    WIDTH, HEIGHT = width, height
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+    # Création du writer vidéo (60 FPS)
+    writer = imageio.get_writer(output_file, fps=60)
+
+    # Couleurs
+    NIGHT = (12, 17, 36)
+    SNOW = (250, 250, 255)
+
+    # 🌟 Étoiles
+    stars = []
+    for _ in range(120):
+        x = random.randint(0, WIDTH)
+        y = random.randint(0, HEIGHT // 2)
+        phase = random.uniform(0, math.pi * 2)
+        size = random.choice([1, 2])
+        stars.append([x, y, phase, size])
+
+    # ❄️ Neige
+    snowflakes = []
+    for _ in range(280):
+        snowflakes.append([
+            random.uniform(0, WIDTH),
+            random.uniform(0, HEIGHT),
+            random.uniform(0.15, 0.55),
+            random.uniform(0.4, 1.2)
+        ])
+
+    # 🌲 Sapins
+    trees = []
+    for _ in range(12):
+        x = random.randint(0, WIDTH)
+        h = random.randint(90, 170)
+        color_base = (random.randint(5, 18), random.randint(90, 130), random.randint(30, 60))
+        trees.append((x, h, color_base))
+
+    clock = pygame.time.Clock()
+    t = 0
+
+    start_time = time_module.time()
+
+    running = True
+    while running:
+        # Stop after 'duration' seconds
+        if time_module.time() - start_time >= duration:
+            break
+
+        t += 0.005
+        screen.fill(NIGHT)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # 🌟 Étoiles
+        for x, y, phase, size in stars:
+            b = 160 + int(80 * math.sin(t + phase))
+            pygame.draw.circle(screen, (b, b, b), (x, y), size)
+
+        # 🌲 Sapins
+        for x, h, base in sorted(trees, key=lambda t: t[1], reverse=True):
+            for i in range(3):
+                shade = (base[0] + i*8, base[1] + i*8, base[2] + i*6)
+                pygame.draw.polygon(screen, shade, [
+                    (x, HEIGHT - 30 - (h * (1 - i*0.25))),
+                    (x - h//2 + i*10, HEIGHT - 30),
+                    (x + h//2 - i*10, HEIGHT - 30)
+                ])
+
+            pulse = (math.sin(t * 20) + 1) * 0.5
+            glow = int(120 + 120 * pulse)
+            for k in range(10):
+                px = x + random.randint(-h//3, h//3)
+                py = HEIGHT - 35 - random.randint(10, h-10)
+                pygame.draw.circle(screen, (glow, glow, 80), (px, py), 3)
+
+        # ❄️ Neige
+        for flake in snowflakes:
+            flake[1] += flake[2]
+            flake[0] += math.sin(flake[1] * 0.01) * flake[3]
+
+            if flake[1] > HEIGHT:
+                flake[1] = -5
+                flake[0] = random.uniform(0, WIDTH)
+
+            pygame.draw.circle(screen, SNOW, (int(flake[0]), int(flake[1])), 3)
+
+        pygame.display.flip()
+
+        # 🎥 Enregistrer la frame
+        frame = pygame.surfarray.array3d(screen)
+        frame = np.transpose(frame, (1, 0, 2))
+        writer.append_data(frame)
+
+        clock.tick(60)
+
+    writer.close()
+    pygame.quit()
+
+
+def test8(width, height, output_file, duration=600):
+    import pygame
+    import random
+    import math
+    import imageio
+    import numpy as np
+    import time as time_module
+
+    pygame.init()
+    pygame.display.set_caption("✨ Forêt de Noël — Ambiance Satisfaisante ❄️")
+
+    WIDTH, HEIGHT = width, height
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+    # 🎥 Writer vidéo (60 FPS)
+    writer = imageio.get_writer(output_file, fps=60)
+
+    # Couleurs
+    NIGHT = (12, 17, 36)
+    SNOW = (250, 250, 255)
+    WOOD = (120, 95, 70)
+    ROOF = (180, 35, 35)
+
+    # 🌟 Étoiles
+    stars = []
+    for _ in range(120):
+        x = random.randint(0, WIDTH)
+        y = random.randint(0, HEIGHT // 2)
+        phase = random.uniform(0, math.pi * 2)
+        size = random.choice([1, 2])
+        stars.append([x, y, phase, size])
+
+    # ❄️ Neige
+    snowflakes = []
+    for _ in range(280):
+        snowflakes.append([
+            random.uniform(0, WIDTH),
+            random.uniform(0, HEIGHT),
+            random.uniform(0.15, 0.55),
+            random.uniform(0.4, 1.2)
+        ])
+
+    # 🌲 Sapins
+    trees = []
+    for _ in range(12):
+        x = random.randint(0, WIDTH)
+        h = random.randint(90, 170)
+        base = (random.randint(5, 18), random.randint(90, 130), random.randint(30, 60))
+        trees.append((x, h, base))
+
+    # 🏠 Chalet
+    chalet_x = WIDTH // 2
+    chalet_y = HEIGHT
+    chalet_w = 180
+    chalet_h = 90
+
+    # 💭 Fumée
+    smoke = []
+    for _ in range(25):
+        smoke.append([
+            chalet_x + chalet_w//4,
+            chalet_y - chalet_h//2,
+            random.uniform(0.4, 1.2),
+            random.uniform(10, 25),
+            random.uniform(0, math.pi*2)
+        ])
+
+    clock = pygame.time.Clock()
+    t = 0
+    running = True
+    start_time = time_module.time()
+
+    while running:
+
+        # ⏱ arrêt après duration
+        if time_module.time() - start_time >= duration:
+            break
+
+        t += 0.004
+        screen.fill(NIGHT)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # 🌟 Étoiles
+        for x, y, phase, size in stars:
+            b = 170 + int(70 * math.sin(t + phase))
+            pygame.draw.circle(screen, (b, b, b), (x, y), size)
+
+        # 🌲 Sapins
+        for x, h, base in sorted(trees, key=lambda t: t[1], reverse=True):
+            for i in range(3):
+                shade = (base[0] + i*8, base[1] + i*8, base[2] + i*6)
+                pygame.draw.polygon(screen, shade, [
+                    (x, HEIGHT - 30 - (h * (1 - i*0.25))),
+                    (x - h//2 + i*10, HEIGHT - 30),
+                    (x + h//2 - i*10, HEIGHT - 30)
+                ])
+
+        # 🏠 Chalet
+        pygame.draw.rect(screen, WOOD, (chalet_x - chalet_w//2, chalet_y - chalet_h, chalet_w, chalet_h))
+        pygame.draw.polygon(screen, ROOF, [
+            (chalet_x - chalet_w//2 - 10, chalet_y - chalet_h),
+            (chalet_x + chalet_w//2 + 10, chalet_y - chalet_h),
+            (chalet_x, chalet_y - chalet_h - 50)
+        ])
+        pygame.draw.rect(screen, (70, 50, 40), (chalet_x - 20, chalet_y - 45, 40, 45))
+        glow = 180 + int(50 * math.sin(t*2))
+        pygame.draw.rect(screen, (glow, glow, 120), (chalet_x + 40, chalet_y - 70, 35, 30))
+
+        # 💭 Fumée
+        for puff in smoke:
+            puff[1] -= puff[2] * 0.4
+            puff[0] += math.sin(puff[4] + t * 1.5) * 0.4
+            puff[3] += 0.02
+
+            alpha = max(0, 200 - int(puff[3] * 8))
+            smoke_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
+            pygame.draw.circle(smoke_surf, (255, 255, 255, alpha), (30, 30), int(puff[3]))
+            screen.blit(smoke_surf, (int(puff[0]-30), int(puff[1]-30)))
+
+            if alpha <= 5:
+                puff[0] = chalet_x + chalet_w//4
+                puff[1] = chalet_y - chalet_h//2
+                puff[3] = random.uniform(10, 25)
+
+        # ❄️ Neige
+        for flake in snowflakes:
+            flake[1] += flake[2]
+            flake[0] += math.sin(flake[1] * 0.01) * flake[3]
+            if flake[1] > HEIGHT:
+                flake[1] = -5
+                flake[0] = random.uniform(0, WIDTH)
+            pygame.draw.circle(screen, SNOW, (int(flake[0]), int(flake[1])), 3)
+
+        pygame.display.flip()
+
+        # 🎥 Ajout frame à la vidéo
+        frame = pygame.surfarray.array3d(screen)
+        frame = np.transpose(frame, (1, 0, 2))
+        writer.append_data(frame)
+
+        clock.tick(60)
+
+    writer.close()
+    pygame.quit()
+
+
+def test9(width, height, total_pegs, output_file):
+    import pygame
+    import random
+    import math
+    import colorsys
+    import numpy as np
+    import imageio
+
+    pygame.init()
+    pygame.display.set_caption("🎄 Plinko Sapin Arc-en-Ciel 🎄")
+    max_duration = 10 * 60  # 10 minutes = 600 secondes
+    start_time = pygame.time.get_ticks()  # en millisecondes
+
+    WIDTH, HEIGHT = width, height
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    clock = pygame.time.Clock()
+
+    amount = random.choice([20, 50, 100])
+
+    multipliers = random.choice([
+        [100, 10, 2, 0.2, 2, 10, 100],
+        [20, 10, 5, 2, 0.2, 2, 5, 10, 20],
+        [15, 10, 1.5, 0.5, 1.5, 10, 15],
+        [100, 1.3, 0.5, 0.9, 0.5, 1.3, 100],
+        [0.2, 0.5, 2, 10, 2, 0.5, 0.2],
+        [50, 5, 2, 0.5, 0.2, 0.5, 2, 5, 50]
+    ])
+    num_bins = len(multipliers)
+    bin_width = WIDTH // num_bins
+
+    # Sapin automatique
+    rows = 0
+    pegs_per_row = []
+    pegs_counted = 0
+    while pegs_counted < total_pegs:
+        rows += 1
+        pegs_counted += rows
+        pegs_per_row.append(rows)
+    if pegs_counted > total_pegs:
+        pegs_per_row[-1] -= pegs_counted - total_pegs
+
+    # Génération des pegs
+    pegs = []
+    max_width = WIDTH * 0.9
+    y_start = 100
+    y_spacing = (HEIGHT - 200) / len(pegs_per_row)
+    for row_idx, count in enumerate(pegs_per_row):
+        y = y_start + row_idx * y_spacing
+        if count == 1:
+            x_positions = [WIDTH // 2]
         else:
-            width, height = 720, 1080
-            output_dir = "../../Reddit/Simulations/Christmas/ChristmasHill/Vertical/sim2.mp4"
+            row_width = max_width * count / max(pegs_per_row)
+            spacing = row_width / (count - 1)
+            x_start = (WIDTH - row_width) / 2
+            x_positions = [x_start + i * spacing for i in range(count)]
+        for x in x_positions:
+            pegs.append((int(x), int(y)))
+
+    def new_ball():
+        return {
+            "x": WIDTH//2 + random.uniform(-30, 30),
+            "y": 50 + random.uniform(-10, 10),
+            "vx": random.uniform(-0.5, 0.5),
+            "vy": 0,
+            "hue": random.random()
+        }
+
+    ball = new_ball()
+    running = True
+    font = pygame.font.SysFont(None, 28)
+    ball_path = []  # stocke les positions et couleurs de la bille
+
+    # Choix aléatoire de la restitution entre 0.5 et 0.8
+    restitution = random.uniform(0.5, 0.8)
+
+    # Choix aléatoire de la gravité entre 0.03 et 0.06
+    gravity = random.uniform(0.03, 0.06)
+    peg_radius = 6
+
+    # Créer le writer vidéo
+    writer = imageio.get_writer(output_file, fps=60)
+
+    # Choix aléatoire d’une association de couleurs de Noël
+    color_pairs = [
+        ((255, 0, 0), (255, 255, 0)),   # rouge + jaune
+        ((255, 0, 0), (0, 0, 255)),     # rouge + bleu
+        ((0, 200, 0), (255, 255, 0)),   # vert + jaune
+        ((0, 200, 0), (255, 0, 0))      # vert + rouge
+    ]
+    peg_colors = random.choice(color_pairs)
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        screen.fill((10, 20, 40))
         
-        test6(width, height, output_dir)
+
+        # Montant
+        formatted_amount = f"{amount:,.2f}".replace(",", " ")
+        txt = font.render(f"Montant : {formatted_amount} €", True, (255,255,255))
+        screen.blit(txt, (20, 20))
+
+        # 🎄 Fond sapin de Noël (triangle vert)
+        tree_top = (WIDTH // 2, 50)
+        tree_bottom_left = (WIDTH // 2 - WIDTH * 0.6, HEIGHT - 70)
+        tree_bottom_right = (WIDTH // 2 + WIDTH * 0.6, HEIGHT - 70)
+        pygame.draw.polygon(screen, (0, 50, 0), [tree_top, tree_bottom_left, tree_bottom_right])
+
+        
+
+        # 🎨 Dessin des pegs avec l’association choisie
+        for idx, (px, py) in enumerate(pegs):
+            color = peg_colors[0] if idx % 2 == 0 else peg_colors[1]
+            pygame.draw.circle(screen, color, (px, py), peg_radius)
+
+        
+
+        # Collisions pegs
+        for px, py in pegs:
+            dx = ball["x"] - px
+            dy = ball["y"] - py
+            dist = math.sqrt(dx*dx + dy*dy)
+            if dist < peg_radius + 4:
+                angle = math.atan2(dy, dx)
+                speed = math.sqrt(ball["vx"]**2 + ball["vy"]**2) * restitution
+                ball["vx"] = math.cos(angle) * speed
+                ball["vy"] = math.sin(angle) * speed
+
+        # Mise à jour
+        ball["vy"] += gravity
+        ball["x"] += ball["vx"]
+        ball["y"] += ball["vy"]
+
+        # Wrap horizontal
+        if ball["x"] < 0:
+            ball["x"] += WIDTH
+        elif ball["x"] > WIDTH:
+            ball["x"] -= WIDTH
+
+        # Limite verticale
+        if ball["y"] > HEIGHT-10:
+            ball["y"] = HEIGHT-10
+            ball["vy"] *= -restitution
+            ball["vx"] *= 0.8
+
+        # Couleur arc-en-ciel
+        ball["hue"] += 0.005
+        if ball["hue"] > 1.0:
+            ball["hue"] -= 1.0
+        r, g, b = colorsys.hsv_to_rgb(ball["hue"], 1, 1)
+        color = (int(r*255), int(g*255), int(b*255))
+
+        pygame.draw.circle(screen, color, (int(ball["x"]), int(ball["y"])), 10)
+
+        # Ajouter la position et couleur actuelle au chemin
+        ball_path.append((ball["x"], ball["y"], color))
+        # Dessiner le chemin de la bille avec la couleur originale
+        for px, py, col in ball_path[-1000:]:  # on garde seulement les 100 dernières positions
+            pygame.draw.circle(screen, col, (int(px), int(py)), 6)
+
+        if len(ball_path) > 1000:
+            ball_path = ball_path[-1000:]  # garder seulement les 500 dernières positions
+
+        # Arrivée en bas → réapparition au centre avec décalage
+        if ball["y"] >= HEIGHT - 70:
+            index = int(ball["x"] // bin_width)
+            index = min(max(index, 0), num_bins - 1)
+            amount *= multipliers[index]
+            ball = new_ball()
+
+        # Cases avec dégradé logarithmique
+        min_log = math.log(min(multipliers))
+        max_log = math.log(max(multipliers))
+        for i, m in enumerate(multipliers):
+            x1 = i * bin_width
+            t = (math.log(m) - min_log) / (max_log - min_log)
+            r_col = int((1 - t) * 255)
+            g_col = int(t * 255)
+            color_bin = (r_col, g_col, 0)
+            pygame.draw.rect(screen, color_bin, (x1, HEIGHT-60, bin_width-2, 60))
+            txt_bin = font.render(f"x{m}", True, (0,0,0))
+            screen.blit(txt_bin, (x1 + bin_width//2 - 15, HEIGHT-40))
+
+        # Conditions de fin
+        if amount <= 1:
+            txt_end = font.render("Montant tombé à 1€ — Vous êtes fauchés", True, (255,80,80))
+            screen.blit(txt_end, (WIDTH//2 - 200, HEIGHT//2))
+            pygame.display.flip()
+            pygame.time.wait(3000)
+            break
+        if amount >= 1_000_000:
+            txt_end = font.render("1 millions € - Jackpot !", True, (255,255,100))
+            screen.blit(txt_end, (WIDTH//2 - 200, HEIGHT//2))
+            pygame.display.flip()
+            pygame.time.wait(3000)
+            break
+
+        pygame.display.flip()
+
+        # Temps écoulé en secondes
+        elapsed_time = (pygame.time.get_ticks() - start_time) / 1000
+        if elapsed_time >= max_duration:
+            txt_end = font.render(" ", True, (255, 255, 0))
+            screen.blit(txt_end, (WIDTH//2 - 200, HEIGHT//2))
+            pygame.display.flip()
+            pygame.time.wait(3000)
+            break
+
+        # Capture la frame et ajoute à la vidéo
+        frame = pygame.surfarray.array3d(screen)
+        frame = np.transpose(frame, (1, 0, 2))  # transposer pour orientation correcte
+        writer.append_data(frame)
+
+        clock.tick(60)
+
+    writer.close()
+    pygame.quit()
+
+
+
+
+# test9(720, 1080, total_pegs=300, output_file="../../Reddit/Simulations/Christmas/sim2.mp4")
+
+
+def main3():
+    for format in ["v"]:
+        for i in range(12):
+            if format == "h":
+                width, height = 1080, 720
+                output_dir = "../../Reddit/Simulations/Christmas/ChristmasPlinko/Horizontal/sim1.mp4"
+            else:
+                width, height = 720, 1080
+                output_dir = f"../../Reddit/Simulations/Christmas/ChristmasPlinko/Vertical/sim{i}.mp4"
+            
+            test9(width, height,total_pegs= random.choice([40,50,60,100]), output_file= output_dir)
 
 main3()
