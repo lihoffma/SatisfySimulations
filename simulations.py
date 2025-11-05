@@ -841,5 +841,470 @@ def test2():
 
     pygame.quit()
 
-test2()
+# test2()
 
+
+def test3():
+    import pygame
+    import random
+    import numpy as np
+    from PIL import Image
+
+    # --- Paramètres ---
+    TILE_SIZE = 3        # Taille d’un bloc (patch n×n pixels)
+    OUTPUT_WIDTH = 30    # Largeur en nombre de blocs
+    OUTPUT_HEIGHT = 30   # Hauteur en nombre de blocs
+    IMAGE_PATH = "input.png"  # Image de base à fournir
+
+    # Charger et convertir en tableau numpy
+    img = Image.open(IMAGE_PATH).convert("RGB")
+    pixels = np.array(img)
+    h, w, _ = pixels.shape
+
+    # --- Découper l’image en blocs de TILE_SIZE ---
+    def extract_tiles():
+        tiles = []
+        for y in range(h - TILE_SIZE + 1):
+            for x in range(w - TILE_SIZE + 1):
+                patch = pixels[y:y+TILE_SIZE, x:x+TILE_SIZE]
+                tiles.append(patch)
+        return tiles
+
+    tiles = extract_tiles()
+
+    # Supprimer les doublons
+    unique_tiles = []
+    tile_ids = {}
+    for t in tiles:
+        key = t.tobytes()
+        if key not in tile_ids:
+            tile_ids[key] = len(unique_tiles)
+            unique_tiles.append(t)
+
+    # Fonction pour obtenir les bords d’une tuile
+    def get_edges(tile):
+        top = tile[0, :, :].tobytes()
+        bottom = tile[-1, :, :].tobytes()
+        left = tile[:, 0, :].tobytes()
+        right = tile[:, -1, :].tobytes()
+        return {"top": top, "bottom": bottom, "left": left, "right": right}
+
+    edges = [get_edges(t) for t in unique_tiles]
+
+    # Construire les règles de compatibilité
+    compatibility = {i: {"top": [], "bottom": [], "left": [], "right": []} for i in range(len(unique_tiles))}
+    for i, e1 in enumerate(edges):
+        for j, e2 in enumerate(edges):
+            if e1["top"] == e2["bottom"]:
+                compatibility[i]["top"].append(j)
+            if e1["bottom"] == e2["top"]:
+                compatibility[i]["bottom"].append(j)
+            if e1["left"] == e2["right"]:
+                compatibility[i]["left"].append(j)
+            if e1["right"] == e2["left"]:
+                compatibility[i]["right"].append(j)
+
+    # Convertir en surface pygame
+    def tile_to_surface(tile):
+        surf = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        pygame.surfarray.blit_array(surf, tile)
+        return surf
+
+    tile_surfaces = [tile_to_surface(t) for t in unique_tiles]
+
+    # --- Grille WFC ---
+    grid = [[list(range(len(unique_tiles))) for _ in range(OUTPUT_HEIGHT)] for _ in range(OUTPUT_WIDTH)]
+
+    def is_collapsed(x, y):
+        return len(grid[x][y]) == 1
+
+    def collapse_cell(x, y):
+        options = grid[x][y]
+        if len(options) > 1:
+            choice = random.choice(options)
+            grid[x][y] = [choice]
+
+    def propagate():
+        changed = True
+        while changed:
+            changed = False
+            for x in range(OUTPUT_WIDTH):
+                for y in range(OUTPUT_HEIGHT):
+                    if not grid[x][y]:
+                        continue
+                    options = grid[x][y]
+                    for direction, (dx, dy) in {"top":(0,-1), "bottom":(0,1), "left":(-1,0), "right":(1,0)}.items():
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < OUTPUT_WIDTH and 0 <= ny < OUTPUT_HEIGHT:
+                            neighbor_opts = grid[nx][ny]
+                            if neighbor_opts:
+                                allowed = set()
+                                for opt in options:
+                                    allowed.update(compatibility[opt][direction])
+                                new_neighbor_opts = [o for o in neighbor_opts if o in allowed]
+                                if set(new_neighbor_opts) != set(neighbor_opts):
+                                    grid[nx][ny] = new_neighbor_opts
+                                    changed = True
+
+    # --- Pygame ---
+    pygame.init()
+    screen = pygame.display.set_mode((OUTPUT_WIDTH*TILE_SIZE, OUTPUT_HEIGHT*TILE_SIZE))
+    pygame.display.set_caption("Wave Function Collapse - Contraintes")
+    clock = pygame.time.Clock()
+
+    running = True
+    while running:
+        screen.fill((0, 0, 0))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Choisir la cellule la moins contrainte (plus faible entropie)
+        non_collapsed = [(x, y) for x in range(OUTPUT_WIDTH) for y in range(OUTPUT_HEIGHT) if not is_collapsed(x, y)]
+        if non_collapsed:
+            x, y = min(non_collapsed, key=lambda pos: len(grid[pos[0]][pos[1]]))
+            collapse_cell(x, y)
+            propagate()
+
+        # Dessiner la grille
+        for x in range(OUTPUT_WIDTH):
+            for y in range(OUTPUT_HEIGHT):
+                if is_collapsed(x, y):
+                    tile_id = grid[x][y][0]
+                    screen.blit(tile_surfaces[tile_id], (x*TILE_SIZE, y*TILE_SIZE))
+
+        pygame.display.flip()
+        clock.tick(30)
+
+    pygame.quit()
+
+# test3()
+
+
+def test4():
+    import pygame
+    import math
+    import random
+
+    # Initialisation de Pygame
+    pygame.init()
+    WIDTH, HEIGHT = 800, 600
+    WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Simulation Spatiale")
+
+    # Couleurs
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+    YELLOW = (255, 255, 0)
+    PLANET_COLORS = [(100, 149, 237), (144, 238, 144), (255, 105, 180), (255, 165, 0)]
+
+    # Paramètres du système
+    FPS = 60
+    G = 0.5  # Constante gravitationnelle artificielle
+
+    class Planet:
+        def __init__(self, x, y, radius, color, mass):
+            self.x = x
+            self.y = y
+            self.radius = radius
+            self.color = color
+            self.mass = mass
+            self.vx = random.uniform(-2, 2)
+            self.vy = random.uniform(-2, 2)
+            self.trail = []
+
+        def update(self, star_x, star_y):
+            # Calcul de la gravité
+            dx = star_x - self.x
+            dy = star_y - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance == 0:
+                distance = 0.1
+            force = G * self.mass / (distance**2)
+            angle = math.atan2(dy, dx)
+            self.vx += force * math.cos(angle)
+            self.vy += force * math.sin(angle)
+
+            # Mise à jour de la position
+            self.x += self.vx
+            self.y += self.vy
+
+            # Sauvegarde du trail
+            self.trail.append((self.x, self.y))
+            if len(self.trail) > 50:
+                self.trail.pop(0)
+
+        def draw(self, win):
+            # Dessin du trail
+            for pos in self.trail:
+                pygame.draw.circle(win, self.color, (int(pos[0]), int(pos[1])), 2)
+            # Dessin de la planète
+            pygame.draw.circle(win, self.color, (int(self.x), int(self.y)), self.radius)
+
+    
+    clock = pygame.time.Clock()
+    run = True
+
+    # Position de l'étoile
+    star_x, star_y = WIDTH // 2, HEIGHT // 2
+    star_radius = 30
+
+    # Création de planètes
+    planets = []
+    for i in range(5):
+        p = Planet(random.randint(100, WIDTH-100),
+                random.randint(100, HEIGHT-100),
+                random.randint(5, 10),
+                random.choice(PLANET_COLORS),
+                random.randint(5, 20))
+        planets.append(p)
+
+    while run:
+        clock.tick(FPS)
+        WIN.fill(BLACK)
+
+        # Gestion des événements
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+
+        # Dessin de l'étoile
+        pygame.draw.circle(WIN, YELLOW, (star_x, star_y), star_radius)
+
+        # Mise à jour et dessin des planètes
+        for planet in planets:
+            planet.update(star_x, star_y)
+            planet.draw(WIN)
+
+        pygame.display.update()
+
+    pygame.quit()
+
+# test4()
+
+
+def test5():
+    import pygame
+    import random
+    import math
+
+    # Initialisation de Pygame
+    pygame.init()
+
+    # Taille de la fenêtre
+    WINDOW_SIZE = 600
+    screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
+    pygame.display.set_caption("Triangles rebondissants")
+
+    # Paramètres
+    NUM_TRIANGLES = 4
+    SPEED = 3
+    GROWTH_RATE = 1.02  # Chaque collision augmente la taille de 2%
+    FPS = 60
+
+    # Classe Triangle
+    class Triangle:
+        def __init__(self):
+            self.size = 50
+            self.x = random.randint(self.size, WINDOW_SIZE - self.size)
+            self.y = random.randint(self.size, WINDOW_SIZE - self.size)
+            self.vx = random.choice([-SPEED, SPEED])
+            self.vy = random.choice([-SPEED, SPEED])
+            self.color = (random.randint(50,255), random.randint(50,255), random.randint(50,255))
+        
+        def get_points(self):
+            # Triangle équilatéral
+            height = self.size * math.sqrt(3) / 2
+            return [(self.x, self.y - 2/3*height),
+                    (self.x - self.size/2, self.y + 1/3*height),
+                    (self.x + self.size/2, self.y + 1/3*height)]
+        
+        def move(self):
+            self.x += self.vx
+            self.y += self.vy
+            
+            # Collision avec les bords
+            if self.x - self.size/2 <= 0 or self.x + self.size/2 >= WINDOW_SIZE:
+                self.vx *= -1
+                self.size *= GROWTH_RATE
+            if self.y - self.size/2 <= 0 or self.y + self.size/2 >= WINDOW_SIZE:
+                self.vy *= -1
+                self.size *= GROWTH_RATE
+        
+        def draw(self, surface):
+            pygame.draw.polygon(surface, self.color, self.get_points())
+
+    def check_collision(t1, t2):
+        # Collision simple basée sur la distance entre centres
+        dx = t1.x - t2.x
+        dy = t1.y - t2.y
+        distance = math.hypot(dx, dy)
+        if distance < (t1.size + t2.size)/2:
+            t1.vx *= -1
+            t1.vy *= -1
+            t2.vx *= -1
+            t2.vy *= -1
+            t1.size *= GROWTH_RATE
+            t2.size *= GROWTH_RATE
+
+    # Création des triangles
+    triangles = [Triangle() for _ in range(NUM_TRIANGLES)]
+
+    # Boucle principale
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        screen.fill((30, 30, 30))
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        
+        # Déplacement et dessin
+        for tri in triangles:
+            tri.move()
+            tri.draw(screen)
+        
+        # Vérification collisions entre triangles
+        for i in range(NUM_TRIANGLES):
+            for j in range(i+1, NUM_TRIANGLES):
+                check_collision(triangles[i], triangles[j])
+        
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    pygame.quit()
+
+
+
+# test5()
+
+
+def test6(width, height, output_file):
+    import pygame
+    import random
+    import math
+    import numpy as np
+    import imageio
+
+    # Initialisation de Pygame
+    pygame.init()
+    pygame.display.set_caption("🎄 Simulation de Noël – neige sur une colline 🎅")
+
+    WIDTH, HEIGHT = width, height
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+    # 🎥 Writer vidéo imageio (mp4, 60 FPS)
+    writer = imageio.get_writer(output_file, fps=60, codec='libx264', quality=8)
+
+    # Couleurs
+    WHITE = (255, 255, 255)
+    DARK_BLUE = (0, 128, 255)
+    BLACK = (0, 0, 0)
+    GREEN = (0, 255, 0)
+
+    LINE_Y = 100
+    ACCUMULATION_RATE = 4  
+
+    base_height = [int(10 * math.sin(x / 100) + 50) for x in range(WIDTH)]
+    snow_height = [base_height[x] for x in range(WIDTH)]
+
+    class Snowflake:
+        def __init__(self):
+            self.x = random.randint(0, WIDTH - 1)
+            self.y = random.randint(-HEIGHT, 0)
+            self.radius = random.randint(2, 4)
+            self.speed = random.uniform(1, 3)
+            self.angle = random.uniform(0, math.pi * 2)
+            self.is_black = random.random() < 0.025  
+
+        def fall(self):
+            self.y += self.speed
+            self.x += math.sin(self.angle) * 0.5
+            if self.x < 0: self.x += WIDTH
+            elif self.x >= WIDTH: self.x -= WIDTH
+
+        def draw(self, screen):
+            color = BLACK if self.is_black else WHITE
+            pygame.draw.circle(screen, color, (int(self.x), int(self.y)), self.radius)
+
+    snowflakes = [Snowflake() for _ in range(250)]
+    running = True
+    clock = pygame.time.Clock()
+    snow_reached_line = False
+
+    while running:
+        screen.fill(DARK_BLUE)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        for x in range(WIDTH):
+            ground_y = HEIGHT - snow_height[x]
+            pygame.draw.line(screen, WHITE, (x, HEIGHT), (x, ground_y))
+
+        pygame.draw.line(screen, GREEN, (0, LINE_Y), (WIDTH, LINE_Y), 3)
+
+        for x in range(WIDTH):
+            if HEIGHT - snow_height[x] <= LINE_Y:
+                snow_reached_line = True
+                break
+
+        if snow_reached_line:
+            font = pygame.font.SysFont("Comic Sans MS", 48, bold=True)
+            text = font.render(" La neige a atteint la ligne !", True, GREEN)
+            screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - 40))
+
+        for flake in snowflakes:
+            flake.fall()
+            xi = int(flake.x)
+            if 0 <= xi < WIDTH:
+                ground_y = HEIGHT - snow_height[xi]
+                if flake.y >= ground_y:
+                    if flake.is_black:
+                        for dx in range(-10, 11):
+                            xj = xi + dx
+                            if 0 <= xj < WIDTH:
+                                snow_height[xj] = max(base_height[xj], snow_height[xj] - random.randint(5, 10))
+                    else:
+                        snow_height[xi] = min(HEIGHT, snow_height[xi] + ACCUMULATION_RATE)
+                        if xi > 0: snow_height[xi - 1] = max(snow_height[xi - 1], snow_height[xi] - ACCUMULATION_RATE // 2)
+                        if xi < WIDTH - 1: snow_height[xi + 1] = max(snow_height[xi + 1], snow_height[xi] - ACCUMULATION_RATE // 2)
+
+                    snowflakes.remove(flake)
+                    snowflakes.append(Snowflake())
+                    continue
+
+            flake.draw(screen)
+
+        pygame.display.flip()
+
+        # 🎥 Capture frame → numpy → enregistrement
+        frame = pygame.surfarray.array3d(screen)       # (W,H,3)
+        frame = np.transpose(frame, (1, 0, 2))         # Correction orientation
+        writer.append_data(frame)
+
+        if snow_reached_line:
+            pygame.time.wait(3000)
+            break
+
+        clock.tick(60)
+
+    writer.close()
+    pygame.quit()
+
+
+def main3():
+    for format in ["h","v"]:
+        if format == "h":
+            width, height = 1080, 720
+            output_dir = "../../Reddit/Simulations/Christmas/ChristmasHill/Horizontal/sim2.mp4"
+        else:
+            width, height = 720, 1080
+            output_dir = "../../Reddit/Simulations/Christmas/ChristmasHill/Vertical/sim2.mp4"
+        
+        test6(width, height, output_dir)
+
+main3()
